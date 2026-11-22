@@ -54,14 +54,18 @@ export const bondsViewTemplate = `
             <td>{{ b.party_name }}</td>
             <td>{{ fmt(b.balance) }}</td>
             <td>{{ fmt(b.frozen) }}</td>
-            <td>{{ fmt(b.balance - b.frozen) }}</td>
+            <td>{{ fmt(b.available != null ? b.available : (b.balance - b.frozen)) }}</td>
             <td><span class="badge frozen">{{ b.status }}</span></td>
           </tr>
         </tbody>
       </table>
       <div v-if="bondDetail" style="margin-top:12px">
         <h3>明细 · {{ bondDetail.account.party_key }}</h3>
-        <p class="hint">入金流水 {{ bondDetail.deposits.length }} 条 · 关联笼 {{ bondDetail.cages.length }} 只</p>
+        <p class="hint">
+          入金流水 {{ bondDetail.deposits.length }} 条 · 关联笼 {{ bondDetail.cages.length }} 只
+          · 服务端口径可用 {{ fmt(bondDetail.account.available) }}
+          （余额 {{ fmt(bondDetail.account.balance) }} − 冻结 {{ fmt(bondDetail.account.frozen) }}）
+        </p>
         <table>
           <thead><tr><th>入金</th><th>备注</th><th>时间</th><th>操作者</th></tr></thead>
           <tbody>
@@ -73,6 +77,21 @@ export const bondsViewTemplate = `
             </tr>
           </tbody>
         </table>
+        <h3 style="margin-top:12px">增补冻结（同源 topup_jobs）</h3>
+        <table v-if="bondDetail.topups && bondDetail.topups.length">
+          <thead><tr><th>ID</th><th>笼</th><th>金额</th><th>口径</th><th>状态</th><th>时间</th></tr></thead>
+          <tbody>
+            <tr v-for="t in bondDetail.topups" :key="t.id">
+              <td>{{ t.id }}</td>
+              <td>{{ t.cage_code }}</td>
+              <td>{{ fmt(t.amount) }}</td>
+              <td>{{ t.mode }}</td>
+              <td><span class="badge pass">{{ t.status }}</span></td>
+              <td>{{ t.created_at }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-else class="hint">该当事人尚无增补冻结。</p>
       </div>
     </div>
   </div>

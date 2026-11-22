@@ -24,8 +24,9 @@
 |----|------|
 | 业务 LOC | **≥2900**（py+前端，不含 vue.global / Docker / README；自检约 2984） |
 | 后端模块 | db / auth / locks / bonds_svc / cages_svc / attest_svc / release_svc / forfeit_svc / reconcile_svc / audit_svc / topup_svc / split_svc |
-| 前端视图 | 保证金户 / 入笼冻结 / 履约核验 / 解笼拨付 / 罚没册 / 对账互证 / 审计争用 / 增补拆笼空桩（8 页） |
-| 空桩 | topup（增补入笼）、split（拆笼分拨）——前后端均有 |
+| 前端视图 | 保证金户 / 入笼冻结 / 履约核验 / 解笼拨付 / 罚没册 / 对账互证 / 审计争用 / 增补拆笼（8 页） |
+| 空桩 | split（拆笼分拨）——前后端均有；topup 已落地（见下） |
+| 增补 | 甲路径「同笼扩额整笔落库」，纪要 `docs/decisions/增补扩笼纪要.md`（2026-11-22 锁死） |
 
 ## 主链路
 

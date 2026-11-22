@@ -50,11 +50,16 @@ def get_cage(cage_id: int, authorization: AuthHeader = None):
             "SELECT * FROM forfeits WHERE cage_id=? ORDER BY id DESC",
             (cage_id,),
         ).fetchall()
+        topups = conn.execute(
+            "SELECT * FROM topup_jobs WHERE cage_id=? ORDER BY id DESC",
+            (cage_id,),
+        ).fetchall()
         return {
             "cage": dict(cage),
             "attestations": [dict(a) for a in atts],
             "releases": [dict(r) for r in rels],
             "forfeits": [dict(f) for f in fors],
+            "topups": [dict(t) for t in topups],
         }
 
 

@@ -19,24 +19,20 @@ def _auth(c: TestClient) -> dict:
     return {"Authorization": "Bearer " + tok}
 
 
-def test_topup_stub_no_balance_change():
+def test_topup_stub_endpoint_removed():
+    """空桩入口已按增补扩笼纪要拆除：旧地址不得再接受无资金面变更的登记。"""
     c = TestClient(app)
     h = _auth(c)
     cage = c.get("/api/cages", headers=h).json()["items"][0]
-    before_amount = cage["amount"]
-    before_avail = cage["available"]
     r = c.post(
         "/api/topup-stub",
         headers=h,
         json={"cage_id": cage["id"], "amount": 5000, "mode": "同笼扩代"},
     )
-    assert r.status_code == 200
-    assert r.json()["cage_unchanged"] is True
-    after = c.get(f"/api/cages/{cage['id']}", headers=h).json()["cage"]
-    assert after["amount"] == before_amount
-    assert after["available"] == before_avail
-    jobs = c.get("/api/topup/jobs", headers=h).json()["items"]
-    assert any(j["status"] == "空桩登记" for j in jobs)
+    assert r.status_code == 404
+    with connect() as conn:
+        jobs = conn.execute("SELECT COUNT(*) c FROM topup_jobs").fetchone()["c"]
+    assert jobs == 0
 
 
 def test_split_stub_no_new_cage():
