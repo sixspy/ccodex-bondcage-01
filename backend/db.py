@@ -26,8 +26,7 @@ PRODUCT_META = {
         "topup",
         "split",
     ],
-    # 增补（topup）已按 ADR-2026-11-22-TOPUP-01 落地为同笼扩额整笔落库，仅剩拆笼空桩
-    "stubs": ["split_cage"],
+    "stubs": ["topup_cage", "split_cage"],
 }
 
 

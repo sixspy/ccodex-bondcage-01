@@ -16,8 +16,7 @@ def list_bonds(authorization: AuthHeader = None):
     require_user(authorization)
     with connect() as conn:
         rows = conn.execute(
-            """SELECT *, (balance - frozen) AS available
-               FROM bond_accounts ORDER BY id"""
+            """SELECT * FROM bond_accounts ORDER BY id"""
         ).fetchall()
         return {"items": [dict(r) for r in rows]}
 
@@ -40,20 +39,10 @@ def get_bond(party_key: str, authorization: AuthHeader = None):
                FROM cages WHERE party_key=? ORDER BY id DESC""",
             (party_key,),
         ).fetchall()
-        topups = conn.execute(
-            """SELECT j.*, c.cage_code FROM topup_jobs j
-               JOIN cages c ON c.id=j.cage_id
-               WHERE c.party_key=? ORDER BY j.id DESC""",
-            (party_key,),
-        ).fetchall()
-        account = dict(row)
-        # 账户页可用口径由服务端同源给出，禁止前端私算
-        account["available"] = float(row["balance"]) - float(row["frozen"])
         return {
-            "account": account,
+            "account": dict(row),
             "deposits": [dict(d) for d in deposits],
             "cages": [dict(c) for c in cages],
-            "topups": [dict(t) for t in topups],
         }
 
 

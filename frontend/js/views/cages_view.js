@@ -59,27 +59,11 @@ export const cagesViewTemplate = `
       <tbody>
         <tr><td>状态</td><td><span class="badge" :class="statusClass(cageDetail.cage.status)">{{ cageDetail.cage.status }}</span></td></tr>
         <tr><td>可用 / 总额</td><td>{{ fmt(cageDetail.cage.available) }} / {{ fmt(cageDetail.cage.amount) }}</td></tr>
-        <tr><td>笼代</td><td>g{{ cageDetail.cage.generation }}（每笔同笼增补 +1）</td></tr>
         <tr><td>核验条数</td><td>{{ cageDetail.attestations.length }}</td></tr>
         <tr><td>拨付条数</td><td>{{ cageDetail.releases.length }}</td></tr>
         <tr><td>罚没条数</td><td>{{ cageDetail.forfeits.length }}</td></tr>
       </tbody>
     </table>
-    <h3 style="margin-top:12px">扩额痕迹（增补入笼，同源 topup_jobs）</h3>
-    <table v-if="cageDetail.topups && cageDetail.topups.length">
-      <thead><tr><th>ID</th><th>金额</th><th>口径</th><th>状态</th><th>明细</th><th>时间</th></tr></thead>
-      <tbody>
-        <tr v-for="t in cageDetail.topups" :key="t.id">
-          <td>{{ t.id }}</td>
-          <td>{{ fmt(t.amount) }}</td>
-          <td>{{ t.mode }}</td>
-          <td><span class="badge pass">{{ t.status }}</span></td>
-          <td style="font-size:11px">{{ t.detail }}</td>
-          <td>{{ t.created_at }}</td>
-        </tr>
-      </tbody>
-    </table>
-    <p v-else class="hint">本笼尚无增补扩额记录。</p>
   </div>
 </section>
 `;

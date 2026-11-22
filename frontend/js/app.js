@@ -362,17 +362,13 @@ createApp({
       }
     }
 
-    async function doTopupExpand() {
+    async function doTopupStub() {
       clearFlash();
       try {
         if (!topupForm.value.cage_id) throw new Error("请选择笼");
-        const row = await api.topup(topupForm.value);
-        flashOk(
-          `增补已扩笼 ${row.cage_code}：可用 ${fmt(row.available)} · 笼代 g${row.generation}`
-        );
+        const row = await api.topupStub(topupForm.value);
+        flashOk(`增补空桩已登记 #${row.job_id}`);
         await refresh();
-        const cg = cages.value.find((x) => x.id === topupForm.value.cage_id);
-        if (cg) await selectCage(cg);
       } catch (e) {
         flashErr(e);
       }
@@ -448,7 +444,7 @@ createApp({
       doForfeit,
       loadReconcile,
       loadProof,
-      doTopupExpand,
+      doTopupStub,
       doSplitStub,
     };
   },

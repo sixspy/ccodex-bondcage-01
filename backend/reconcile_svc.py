@@ -37,19 +37,6 @@ def _reconcile_cage(conn, cage) -> dict:
            WHERE party_key=? AND status IN ('已冻结','核验通过','核验违约','部分解笼','部分罚没')""",
         (party,),
     ).fetchone()["s"]
-    # 本笼扩额累计：同笼扩代（甲路径）抬升笼面的全部增补，按笼归集、跨代追溯
-    topup_total = conn.execute(
-        """SELECT COALESCE(SUM(amount),0) s FROM topup_jobs
-           WHERE cage_id=? AND status='已扩笼'""",
-        (cage_id,),
-    ).fetchone()["s"]
-    topup_rows = conn.execute(
-        """SELECT id,amount,mode,status,detail,created_at FROM topup_jobs
-           WHERE cage_id=? ORDER BY id""",
-        (cage_id,),
-    ).fetchall()
-    account_balance = float(acct["balance"]) if acct else None
-    account_frozen = float(acct["frozen"]) if acct else None
     return {
         "cage_id": cage_id,
         "cage_code": cage["cage_code"],
@@ -61,20 +48,12 @@ def _reconcile_cage(conn, cage) -> dict:
         "available": available,
         "released": float(released),
         "forfeited": float(forfeited),
-        "topup_total": float(topup_total),
-        "topups": [dict(t) for t in topup_rows],
         "accounted": accounted,
         "balanced": ok,
         "gap": round(amount - accounted, 6),
-        "account_balance": account_balance,
-        "account_frozen": account_frozen,
-        "account_available": (
-            round(account_balance - account_frozen, 6) if acct else None
-        ),
+        "account_balance": float(acct["balance"]) if acct else None,
+        "account_frozen": float(acct["frozen"]) if acct else None,
         "live_cage_available": float(live_frozen),
-        "account_frozen_matches_live": (
-            abs(account_frozen - float(live_frozen)) < 1e-6 if acct else False
-        ),
         "proof": {
             "formula": "available + released + forfeited == amount（同笼代）",
             "left": accounted,
