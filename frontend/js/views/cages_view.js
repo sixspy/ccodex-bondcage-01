@@ -58,7 +58,26 @@ export const cagesViewTemplate = `
       <thead><tr><th>字段</th><th>值</th></tr></thead>
       <tbody>
         <tr><td>状态</td><td><span class="badge" :class="statusClass(cageDetail.cage.status)">{{ cageDetail.cage.status }}</span></td></tr>
+        <tr><td>笼主键 / 笼号</td><td>#{{ cageDetail.cage.id }} · {{ cageDetail.cage.cage_code }}（对外笼号不随增补改变）</td></tr>
+        <tr><td>代</td><td>{{ cageDetail.cage.generation }}</td></tr>
         <tr><td>可用 / 总额</td><td>{{ fmt(cageDetail.cage.available) }} / {{ fmt(cageDetail.cage.amount) }}</td></tr>
+        <tr>
+          <td>增补扩额</td>
+          <td>{{ cageDetail.topups.length }} 笔 · 合计 {{ fmt(cageDetail.topups.reduce((s,j)=>s+Number(j.amount||0),0)) }}</td>
+        </tr>
+        <tr>
+          <td>当事人冻结（账户侧）</td>
+          <td>{{ fmt(cageDetail.account ? cageDetail.account.frozen : 0) }}</td>
+        </tr>
+        <tr>
+          <td>活笼可用合计（笼侧）</td>
+          <td>
+            {{ fmt(cageDetail.party_live_available) }}
+            <span class="badge" :class="cageDetail.frozen_matches_live?'pass':'fail'">
+              {{ cageDetail.frozen_matches_live ? '同源一致' : '失衡' }}
+            </span>
+          </td>
+        </tr>
         <tr><td>核验条数</td><td>{{ cageDetail.attestations.length }}</td></tr>
         <tr><td>拨付条数</td><td>{{ cageDetail.releases.length }}</td></tr>
         <tr><td>罚没条数</td><td>{{ cageDetail.forfeits.length }}</td></tr>

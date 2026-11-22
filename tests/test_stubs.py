@@ -19,7 +19,8 @@ def _auth(c: TestClient) -> dict:
     return {"Authorization": "Bearer " + tok}
 
 
-def test_topup_stub_no_balance_change():
+def test_topup_stub_now_expands_in_place():
+    """增补已落地为甲路径：原空桩合同作废，改为同笼就地扩额。"""
     c = TestClient(app)
     h = _auth(c)
     cage = c.get("/api/cages", headers=h).json()["items"][0]
@@ -31,12 +32,14 @@ def test_topup_stub_no_balance_change():
         json={"cage_id": cage["id"], "amount": 5000, "mode": "同笼扩代"},
     )
     assert r.status_code == 200
-    assert r.json()["cage_unchanged"] is True
+    assert r.json()["cage_unchanged"] is False
+    assert r.json()["formal_cage_code"] == cage["cage_code"]
     after = c.get(f"/api/cages/{cage['id']}", headers=h).json()["cage"]
-    assert after["amount"] == before_amount
-    assert after["available"] == before_avail
+    assert after["cage_code"] == cage["cage_code"]
+    assert after["amount"] == before_amount + 5000
+    assert after["available"] == before_avail + 5000
     jobs = c.get("/api/topup/jobs", headers=h).json()["items"]
-    assert any(j["status"] == "空桩登记" for j in jobs)
+    assert any(j["status"] == "扩额完成" for j in jobs)
 
 
 def test_split_stub_no_new_cage():

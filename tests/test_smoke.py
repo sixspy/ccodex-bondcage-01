@@ -25,7 +25,9 @@ def test_health_and_seed():
     assert health["product"] == "保证金笼"
     assert health["bonds"] >= 4
     assert health["cages"] >= 3
-    assert "topup_cage" in health["meta"]["stubs"]
+    # 增补已按甲路径落地，仅拆笼仍是空桩
+    assert health["meta"]["stubs"] == ["split_cage"]
+    assert health["meta"]["topup_path"] == "甲"
 
 
 def test_freeze_attest_release_flow():

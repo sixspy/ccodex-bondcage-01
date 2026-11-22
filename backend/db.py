@@ -26,8 +26,25 @@ PRODUCT_META = {
         "topup",
         "split",
     ],
-    "stubs": ["topup_cage", "split_cage"],
+    # 增补已按甲路径落地；拆笼仍为空桩。
+    "stubs": ["split_cage"],
+    "topup_path": "甲",
 }
+
+# 仍占用当事人冻结额、可继续核验/解笼/罚没的活笼状态。
+LIVE_CAGE_STATUSES = ("已冻结", "核验通过", "核验违约", "部分解笼", "部分罚没")
+# 乙路径封存后只读历史态；不得再作解笼/增补目标。
+SEALED_CAGE_STATUSES = ("已封存",)
+
+# 增补扩笼命运说明：当日唯一口径，锁死后不接受偏离。
+TOPUP_FATE_PATH = "甲"
+TOPUP_FATE_MODE = "同笼扩代"
+TOPUP_FATE_NOTE = (
+    "今日增补扩笼唯一口径：甲路径「同笼扩代就地扩额」——同一提交整笔改写原笼行"
+    "总额与可用、抬账户冻结、升代并记审计，笼主键与对外笼号保持不变，任一步失败"
+    "账户冻结与笼面整笔回滚。乙路径（封存旧笼再开新笼）今日不采用；偏离即记扩笼"
+    "偏航并拒绝写入。禁止第三路。"
+)
 
 
 def connect() -> sqlite3.Connection:
@@ -139,6 +156,20 @@ CREATE TABLE IF NOT EXISTS topup_jobs(
   mode TEXT NOT NULL,
   status TEXT NOT NULL,
   detail TEXT,
+  created_at TEXT NOT NULL,
+  generation_before INTEGER,
+  generation_after INTEGER,
+  formal_cage_id INTEGER,
+  formal_cage_code TEXT,
+  topup_ref TEXT,
+  fate_path TEXT
+);
+CREATE TABLE IF NOT EXISTS topup_fate(
+  fate_date TEXT PRIMARY KEY,
+  path TEXT NOT NULL,
+  mode TEXT NOT NULL,
+  note TEXT NOT NULL,
+  locked INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS split_jobs(
@@ -168,6 +199,76 @@ def write_audit(conn: sqlite3.Connection, actor: str, action: str, target: str, 
            VALUES (?,?,?,?,?)""",
         (actor, action, target, json.dumps(payload, ensure_ascii=False), now_iso()),
     )
+
+
+def today_str() -> str:
+    from datetime import date
+
+    return date.today().isoformat()
+
+
+def ensure_fate(conn: sqlite3.Connection) -> dict:
+    """当日增补扩笼命运说明：首次写入即锁死，书目唯一，不接受改写。"""
+    day = today_str()
+    row = conn.execute(
+        "SELECT * FROM topup_fate WHERE fate_date=?", (day,)
+    ).fetchone()
+    if row:
+        return dict(row)
+    conn.execute(
+        """INSERT INTO topup_fate(fate_date,path,mode,note,locked,created_at)
+           VALUES (?,?,?,?,?,?)""",
+        (day, TOPUP_FATE_PATH, TOPUP_FATE_MODE, TOPUP_FATE_NOTE, 1, now_iso()),
+    )
+    return dict(
+        conn.execute(
+            "SELECT * FROM topup_fate WHERE fate_date=?", (day,)
+        ).fetchone()
+    )
+
+
+def party_live_available(conn: sqlite3.Connection, party_key: str) -> float:
+    """当事人活笼可用合计（不含已封存旧笼），与账户冻结同源比对。"""
+    marks = ",".join("?" for _ in LIVE_CAGE_STATUSES)
+    return float(
+        conn.execute(
+            f"""SELECT COALESCE(SUM(available),0) s FROM cages
+                WHERE party_key=? AND status IN ({marks})""",
+            (party_key, *LIVE_CAGE_STATUSES),
+        ).fetchone()["s"]
+    )
+
+
+def formal_cage_for_party(conn: sqlite3.Connection, party_key: str) -> dict | None:
+    """当事人当前正式可解笼：不按笼号，只按活笼状态取最近一只。
+
+    甲路径下即原笼主键；乙路径若启用则为新开的正式笼行。封存旧笼不在其列。
+    """
+    marks = ",".join("?" for _ in LIVE_CAGE_STATUSES)
+    row = conn.execute(
+        f"""SELECT * FROM cages
+            WHERE party_key=? AND status IN ({marks})
+            ORDER BY id DESC LIMIT 1""",
+        (party_key, *LIVE_CAGE_STATUSES),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def migrate(conn: sqlite3.Connection) -> None:
+    """为既有库补列/补表；库文件路径不变。"""
+    cols = {
+        r["name"] for r in conn.execute("PRAGMA table_info(topup_jobs)").fetchall()
+    }
+    for name, decl in (
+        ("generation_before", "INTEGER"),
+        ("generation_after", "INTEGER"),
+        ("formal_cage_id", "INTEGER"),
+        ("formal_cage_code", "TEXT"),
+        ("topup_ref", "TEXT"),
+        ("fate_path", "TEXT"),
+    ):
+        if name not in cols:
+            conn.execute(f"ALTER TABLE topup_jobs ADD COLUMN {name} {decl}")
 
 
 def _load_json(name: str):
@@ -272,10 +373,12 @@ def seed_attest_samples(conn: sqlite3.Connection) -> None:
 def init_db() -> None:
     with connect() as conn:
         conn.executescript(SCHEMA)
+        migrate(conn)
         seed_users(conn)
         seed_bonds(conn)
         seed_cages(conn)
         seed_attest_samples(conn)
+        ensure_fate(conn)
         conn.commit()
 
 

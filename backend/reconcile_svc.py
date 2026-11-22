@@ -4,7 +4,12 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from auth import AuthHeader, require_user
-from db import connect
+from db import (
+    SEALED_CAGE_STATUSES,
+    connect,
+    formal_cage_for_party,
+    party_live_available,
+)
 
 router = APIRouter(tags=["reconcile"])
 
@@ -32,11 +37,16 @@ def _reconcile_cage(conn, cage) -> dict:
         "SELECT balance, frozen FROM bond_accounts WHERE party_key=?",
         (party,),
     ).fetchone()
-    live_frozen = conn.execute(
-        """SELECT COALESCE(SUM(available),0) s FROM cages
-           WHERE party_key=? AND status IN ('已冻结','核验通过','核验违约','部分解笼','部分罚没')""",
-        (party,),
-    ).fetchone()["s"]
+    live_frozen = party_live_available(conn, party)
+    # 增补扩额合计（只计已扩额作业票），供笼详情/对账核对“总额含增补”
+    topup_total = float(
+        conn.execute(
+            """SELECT COALESCE(SUM(amount),0) s FROM topup_jobs
+               WHERE cage_id=? AND status='扩额完成'""",
+            (cage_id,),
+        ).fetchone()["s"]
+    )
+    sealed = cage["status"] in SEALED_CAGE_STATUSES
     return {
         "cage_id": cage_id,
         "cage_code": cage["cage_code"],
@@ -44,8 +54,11 @@ def _reconcile_cage(conn, cage) -> dict:
         "contract_no": cage["contract_no"],
         "generation": gen,
         "status": cage["status"],
+        "sealed": sealed,
         "amount": amount,
         "available": available,
+        "topup_total": topup_total,
+        "base_amount": round(amount - topup_total, 6),
         "released": float(released),
         "forfeited": float(forfeited),
         "accounted": accounted,
@@ -54,6 +67,9 @@ def _reconcile_cage(conn, cage) -> dict:
         "account_balance": float(acct["balance"]) if acct else None,
         "account_frozen": float(acct["frozen"]) if acct else None,
         "live_cage_available": float(live_frozen),
+        "frozen_matches_live": abs(float(acct["frozen"]) - float(live_frozen)) < 1e-6
+        if acct
+        else None,
         "proof": {
             "formula": "available + released + forfeited == amount（同笼代）",
             "left": accounted,
@@ -101,12 +117,7 @@ def party_proof(party_key: str, authorization: AuthHeader = None):
         ).fetchone()
         if not acct:
             raise HTTPException(404, "保证金户不存在")
-        live = conn.execute(
-            """SELECT COALESCE(SUM(available),0) s FROM cages
-               WHERE party_key=? AND status IN
-               ('已冻结','核验通过','核验违约','部分解笼','部分罚没')""",
-            (party_key,),
-        ).fetchone()["s"]
+        live = party_live_available(conn, party_key)
         released = conn.execute(
             """SELECT COALESCE(SUM(r.amount),0) s FROM releases r
                JOIN cages c ON c.id=r.cage_id
@@ -121,6 +132,7 @@ def party_proof(party_key: str, authorization: AuthHeader = None):
         ).fetchone()["s"]
         frozen = float(acct["frozen"])
         live_f = float(live)
+        formal = formal_cage_for_party(conn, party_key)
         return {
             "party_key": party_key,
             "account": dict(acct),
@@ -128,9 +140,23 @@ def party_proof(party_key: str, authorization: AuthHeader = None):
             "released_total": float(released),
             "forfeited_total": float(forfeited),
             "frozen_matches_live": abs(frozen - live_f) < 1e-6,
+            # 正式可解笼身份只能来自活笼主键，不按笼号（防止乙路径封存旧号后仍绑旧号）。
+            "formal_cage": formal,
+            "formal_cage_identity": (
+                {
+                    "cage_id": formal["id"],
+                    "cage_code": formal["cage_code"],
+                    "generation": formal["generation"],
+                    "available": formal["available"],
+                    "status": formal["status"],
+                }
+                if formal
+                else None
+            ),
             "proof": {
                 "formula": "account.frozen == sum(live cage available)",
                 "left": frozen,
                 "right": live_f,
+                "matches": abs(frozen - live_f) < 1e-6,
             },
         }

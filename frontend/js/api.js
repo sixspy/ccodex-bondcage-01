@@ -58,6 +58,9 @@ export function createApi(getToken, onUnauthorized) {
     locks: () => req("/api/locks"),
     dashboard: () => req("/api/dashboard"),
     topupJobs: () => req("/api/topup/jobs"),
+    topupFate: () => req("/api/topup/fate"),
+    lockTopupFate: (data) =>
+      req("/api/topup/fate", { method: "POST", body: JSON.stringify(data || {}) }),
     topupStub: (data) =>
       req("/api/topup-stub", { method: "POST", body: JSON.stringify(data) }),
     splitJobs: () => req("/api/split/jobs"),

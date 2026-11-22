@@ -1,7 +1,10 @@
 export const auditViewTemplate = `
 <section class="panel">
   <h2>审计争用</h2>
-  <p class="hint">写动作落审计；后到争用只记 contention，不写业务。</p>
+  <p class="hint">
+    写动作落审计；后到争用只记 contention，不写业务。
+    增补：<code>cage_topup</code> 记整笔扩额前后数额与笼代；偏离命运说明记 <code>topup_deviation</code> 并拒绝写入。
+  </p>
   <div class="grid-2">
     <div>
       <h3>审计</h3>

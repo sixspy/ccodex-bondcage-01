@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from auth import AuthHeader, require_user, require_writer
-from db import connect, now_iso, write_audit
+from db import connect, now_iso, party_live_available, write_audit
 from locks import release, require_lock
 from models import CageFreezeIn
 
@@ -50,11 +50,24 @@ def get_cage(cage_id: int, authorization: AuthHeader = None):
             "SELECT * FROM forfeits WHERE cage_id=? ORDER BY id DESC",
             (cage_id,),
         ).fetchall()
+        tops = conn.execute(
+            "SELECT * FROM topup_jobs WHERE cage_id=? ORDER BY id DESC",
+            (cage_id,),
+        ).fetchall()
+        acct = conn.execute(
+            "SELECT * FROM bond_accounts WHERE party_key=?", (cage["party_key"],)
+        ).fetchone()
+        live = party_live_available(conn, cage["party_key"])
+        frozen = float(acct["frozen"]) if acct else 0.0
         return {
             "cage": dict(cage),
             "attestations": [dict(a) for a in atts],
             "releases": [dict(r) for r in rels],
             "forfeits": [dict(f) for f in fors],
+            "topups": [dict(t) for t in tops],
+            "account": dict(acct) if acct else None,
+            "party_live_available": live,
+            "frozen_matches_live": abs(frozen - live) < 1e-6,
         }
 
 

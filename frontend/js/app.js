@@ -48,6 +48,7 @@ createApp({
     const selectedCage = ref(null);
     const topupJobs = ref([]);
     const splitJobs = ref([]);
+    const topupFate = ref(null);
 
     const bondForm = ref({
       party_key: "P-NEW",
@@ -195,6 +196,7 @@ createApp({
           lk,
           tj,
           sj,
+          tf,
         ] = await Promise.all([
           api.bonds(),
           api.cages(),
@@ -207,6 +209,7 @@ createApp({
           api.locks(),
           api.topupJobs(),
           api.splitJobs(),
+          api.topupFate(),
         ]);
         bonds.value = b.items || [];
         cages.value = c.items || [];
@@ -219,6 +222,7 @@ createApp({
         locks.value = lk.items || [];
         topupJobs.value = tj.items || [];
         splitJobs.value = sj.items || [];
+        topupFate.value = tf || null;
         if (!attestForm.value.cage_id && frozenCages.value.length) {
           attestForm.value.cage_id = frozenCages.value[0].id;
         }
@@ -367,7 +371,10 @@ createApp({
       try {
         if (!topupForm.value.cage_id) throw new Error("请选择笼");
         const row = await api.topupStub(topupForm.value);
-        flashOk(`增补空桩已登记 #${row.job_id}`);
+        flashOk(
+          `增补扩额完成 ${row.formal_cage_code}（代${row.generation_before}→${row.generation_after}，` +
+            `笼额 ${fmt(row.amount)}，冻结 ${fmt(row.account_frozen)}）`
+        );
         await refresh();
       } catch (e) {
         flashErr(e);
@@ -417,6 +424,7 @@ createApp({
       selectedCage,
       topupJobs,
       splitJobs,
+      topupFate,
       bondForm,
       depositForm,
       freezeForm,

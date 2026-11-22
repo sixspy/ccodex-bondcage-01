@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from auth import AuthHeader, require_user, require_writer
-from db import connect, now_iso, write_audit
+from db import SEALED_CAGE_STATUSES, connect, now_iso, write_audit
 from locks import release, require_lock
 from models import SplitIn
 
@@ -37,6 +37,8 @@ def split_stub(body: SplitIn, authorization: AuthHeader = None):
             ).fetchone()
             if not cage:
                 raise HTTPException(404, "笼不存在")
+            if cage["status"] in SEALED_CAGE_STATUSES:
+                raise HTTPException(409, "旧笼已封存，只读历史，不得再拆笼")
             left = float(body.left_amount)
             right = float(body.right_amount)
             if abs(left + right - float(cage["available"])) > 1e-6:

@@ -21,16 +21,17 @@ export const reconcileViewTemplate = `
   <table>
     <thead>
       <tr>
-        <th>笼</th><th>代</th><th>状态</th><th>总额</th><th>可用</th>
-        <th>拨付</th><th>罚没</th><th>合计</th><th>平衡</th><th>缺口</th>
+        <th>笼</th><th>代</th><th>状态</th><th>总额</th><th>其中增补</th><th>可用</th>
+        <th>拨付</th><th>罚没</th><th>合计</th><th>平衡</th><th>缺口</th><th>账户冻结/活笼</th>
       </tr>
     </thead>
     <tbody>
       <tr v-for="i in (recon.items||[])" :key="i.cage_id">
-        <td>{{ i.cage_code }}</td>
+        <td>{{ i.cage_code }}<span v-if="i.sealed">（封存只读）</span></td>
         <td>{{ i.generation }}</td>
         <td>{{ i.status }}</td>
         <td>{{ fmt(i.amount) }}</td>
+        <td>{{ fmt(i.topup_total) }}</td>
         <td>{{ fmt(i.available) }}</td>
         <td>{{ fmt(i.released) }}</td>
         <td>{{ fmt(i.forfeited) }}</td>
@@ -39,6 +40,12 @@ export const reconcileViewTemplate = `
           <span class="badge" :class="i.balanced?'pass':'fail'">{{ i.balanced ? '是' : '否' }}</span>
         </td>
         <td>{{ fmt(i.gap) }}</td>
+        <td>
+          {{ fmt(i.account_frozen) }} / {{ fmt(i.live_cage_available) }}
+          <span class="badge" :class="i.frozen_matches_live?'pass':'fail'">
+            {{ i.frozen_matches_live ? '同源' : '失衡' }}
+          </span>
+        </td>
       </tr>
     </tbody>
   </table>
@@ -49,7 +56,11 @@ export const reconcileViewTemplate = `
 活笼可用 {{ fmt(partyProof.live_cage_available) }}
 匹配 {{ partyProof.frozen_matches_live }}
 拨付合计 {{ fmt(partyProof.released_total) }}
-罚没合计 {{ fmt(partyProof.forfeited_total) }}</div>
+罚没合计 {{ fmt(partyProof.forfeited_total) }}
+正式可解笼 <template v-if="partyProof.formal_cage_identity">
+#{{ partyProof.formal_cage_identity.cage_id }} · {{ partyProof.formal_cage_identity.cage_code }}
+· 代{{ partyProof.formal_cage_identity.generation }} · 可用 {{ fmt(partyProof.formal_cage_identity.available) }}
+</template><template v-else>（无：已全额解笼或已封存）</template></div>
   </div>
 </section>
 `;
